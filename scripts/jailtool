@@ -1,0 +1,183 @@
+#!/usr/bin/env python
+###############################################################################
+#
+# Copyright (c) 2009 Novell, Inc.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public License 
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, contact Novell, Inc.
+#
+# To contact Novell about this file by physical or electronic mail,
+# you may find current contact information at www.novell.com
+#
+###############################################################################
+
+import sys
+import os
+import glob
+import imp
+import logging
+
+try:
+    import stasis
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(\
+                    sys.argv[0]))))
+    import stasis
+
+def basic_usage():
+    return "Usage: stasis <command> <options> ..."
+
+def detailed_usage(loaded_modules):
+    result = []
+    for name, module in loaded_modules.items():
+        intro = module.intro()
+        head = " %s (%s)" % (name, module.abbreviation())
+        result.append("%-22s %s\n" % (head, intro[0]))
+        for line in intro[1:]:
+            result.append("%25s%s\n" % (" ",line))
+
+    return result
+    
+#xsd_dir = os.path.join(os.path.dirname(stasis.__file__), "xsd")
+if sys.platform == "linux2":
+    CONF_DIR = "/etc"
+else:
+    CONF_DIR = "/etc"
+
+#try:
+#    stasis.changeEncoding()
+#except stasis.EncodingError, strerr:
+#    print strerr
+#    sys.exit(1)
+
+try:
+    cmd_dir = os.path.join(os.path.dirname(stasis.__file__), "jail_commands")
+    loaded_modules = {}
+    abbreviations = {}
+    files = glob.glob(os.path.join(cmd_dir, "*.py"))
+    for file in files:
+        (path, file_name) = os.path.split(file)
+        name = os.path.splitext(file_name)[0]
+
+        if name in loaded_modules.keys():
+            continue
+
+        (file, filename, data) = imp.find_module(name, [path])
+
+        try:
+            module = imp.load_module(name, file, filename, data)
+        except ImportError, e:
+            #FIXME ??
+            raise e
+        else:
+            loaded_modules[name] = module
+            abbrev = module.abbreviation()
+            if abbreviations.has_key(abbrev):
+                raise "Already have abbreviation %s" % abbrev
+            else:
+                abbreviations[abbrev] = module
+
+        if file:
+            file.close()
+
+    # Assume first command line option without a leading "-"
+    # is the command.
+    i = 1
+    cmd = None
+    while i < len(sys.argv):
+        if sys.argv[i][0] != "-":
+            cmd = sys.argv[i]
+            break
+
+        i += 1
+    
+    if cmd is None:
+        if "-h" in sys.argv or "--help" in sys.argv:
+            print "%s\n\n Commands\n ==================" % (basic_usage())
+            for line in detailed_usage(loaded_modules):
+                print line
+        else:
+            print "No recogized command entered, try -h for more information"
+            print basic_usage()
+    
+        sys.exit(1)
+
+    parser = stasis.OptionParser(usage=basic_usage())
+    parser.add_option("-c", "--conf-file",
+                       action="append", 
+                       metavar="FILE",
+                       dest="conf_files", 
+                       help="Jail configuration files")
+    parser.add_option("-l", "--logfile",
+                       help="Log file")
+    parser.add_option("-t", "--terse",
+                       action="store_true",
+                       help="Terse output")
+    parser.add_option("-V", "--version", 
+                      action="store_true",
+                      help="print version number and exit")
+    parser.add_option("-v", "--verbose", 
+                      action="count",
+                      help="Increase test logging detail")
+    
+    parser.set_defaults(config_files=[])
+    parser.set_defaults(logfile=None)
+    parser.set_defaults(terse=False)
+    parser.set_defaults(verbose=1)
+    parser.set_defaults(version=False)
+    parser.set_defaults(conf_files = [\
+                  os.path.join(os.getcwd(), "stasis_jails.conf"),\
+                  os.path.join(os.path.expanduser("~"), "stasis_jails.conf")])
+                  #os.path.join(CONF_DIR, "stasis", 'stasis_jails.conf'),
+
+    try:
+        module = abbreviations[cmd]
+    except KeyError:
+        try:
+            module = loaded_modules[cmd]
+        except KeyError:
+            print "Error unrecognized command: %s" % (cmd)
+            print basic_usage()
+            sys.exit(1)
+
+    module.setOptions(parser)
+    (options, args) = parser.parse_args()
+    if options.version:
+        print stasis.__version__
+        sys.exit(0)
+                    
+    logger = logging.getLogger("jailtool")
+    logger.setLevel(40 - options.verbose * 10 )
+    if options.logfile is None:
+        handler = logging.StreamHandler()
+    else:
+        handler = logging.FileHandler(options.logfile, 'w')
+
+    formatter = logging.Formatter("%(levelname)s - %(filename)s:%(lineno)s\n %(message)s\n")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    conf_dict = stasis.getJailtoolConfig(options.config_files)
+    try:
+        result = module.runCommand(options, args, conf_dict, stasis, logger)
+    except stasis.StasisException, e:
+        logger.critical("%s - %s" % (e.__name__, e))
+        parser.print_usage()
+        sys.exit(1)
+
+except KeyboardInterrupt:
+    # Just quietly exit if we got a ^C
+    print 
+    sys.exit(0)
+    
+

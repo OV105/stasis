@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright (c) 2009 Novell, Inc.
+ All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of version 2 of the GNU General Public License 
+ as published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, contact Novell, Inc.
+
+ To contact Novell about this file by physical or electronic mail,
+ you may find current contact information at www.novell.com
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation xml:lang="en">
+      Test sequence schema for stasis
+    </xs:documentation>
+  </xs:annotation>
+  
+  <xs:complexType name="argListType">
+    <xs:sequence>
+      <xs:element name="arg" type="argType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequense>
+  </xs:complexType>
+
+  <xs:complexType name="argType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+ 
+  <xs:complexType name="substListType">
+    <xs:sequence>
+      <xs:element name="substitute" type="substituteType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="substituteType">
+    <xs:attribute name="dest-name" type="xs:string" use="required"/>
+    <xs:attribute name="source-rule" type="xs:string" use="required"/>
+  </xs:completType>
+
+  <xs:complexType name="dependancyType">
+    <xs:attribute name="file-name" type="xs:string" use="optional"/>
+    <xs:attribute name="module" type="xs:string" use="optional"/>
+    <xs:attribute name="function" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="testSequenceType">
+    <xs:sequence>
+      <xs:element name="arg-list" type="argListType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="substitute-list" type="substListType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="run" type="runType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="runType">
+    <xs:sequence>
+      <xs:element name="arg-list" type="argListType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="substitute-list" type="substListType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="depends-on" type="dependancyType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="type" type="xs:string" use="required"/>
+    <xs:attribute name="file" type="xs:string" use="optional"/>
+    <xs:attribute name="module" type="xs:string" use="optional"/>
+    <xs:attribute name="function" type="xs:string" use="optional"/>
+    <xs:attribute name="suite-name" type="xs:string" use="optional"/>
+    <xs:attribute name="role" type="xs:string" use="optional"/>
+    <xs:attribute name="timeout" type="xs:integer" use="optional"/>
+    <xs:attribute name="case-run-id" type="xs:integer" use="optional"/>
+    <xs:attribute name="background" type="xs:string" use="optional"/>
+    <xs:attribute name="collective" type="xs:string" use="optional"/>
+    <xs:attribute name="block-all" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:element name="test-sequence" type="testSequenceType"/>
+</xs:schema>

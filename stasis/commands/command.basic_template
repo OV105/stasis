@@ -1,0 +1,21 @@
+GROUP = "My group"
+
+def intro():
+    """a brief help"""
+    return ["A brief description of what the command does.",\
+            "Multiple lines, each line must be 50 char or less"]
+
+def abbreviation():
+    """abbreviation at command line instead of full module name"""
+    return "tmp"
+
+def setOptions(parser, stasis):
+    """add module specific options for parsing command line"""
+    parser.add_option("-u", "--username",
+                      help="Testopia username")
+
+    parser.set_defaults(username=None)
+
+def runCommand(options, args, stasis, logger):
+    """run the command"""
+    print "Hi"

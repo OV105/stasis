@@ -1,0 +1,58 @@
+
+ Copyright (c) 2009 Novell, Inc.
+ All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of version 2 of the GNU General Public License 
+ as published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, contact Novell, Inc.
+
+ To contact Novell about this file by physical or electronic mail,
+ you may find current contact information at www.novell.com
+
+Determine partitioning layout. You will need the following paritions.
+# Master partition
+# A partition to hold jail archive files
+# Two or more slave partitions
+# A partition (normally the master partition) for the boot loader 
+
+Install OS on master parition. Also create parition to hold jail files and for swap.
+
+
+Configure the master OS as follows.
+# install rcqatools
+# create directories /jails/bootable, /mnt/slave1, /mnt/slave2, etc.
+# In /etc/fstab set Jail partition to mount to /jails
+# In /etc/fstab set slave partions to mount to /mnt/slave1, /mnt/slave2, etc.
+# Add entries for each slave partition to /boot/grub/menu.1st 
+
+Install OS on slave partition, during the install do not install a boot loader. Also do NOT install the OS to multiple partitions.
+
+Configure the slave OS as follows.
+# Create directories /mnt/master, /jails and /mnt/slave[X]. 
+# Replace the /etc/fstab file with a copy of the fstab file from the master partition. 
+# On slave parition edit the /etc/fstab so that the newly-installed partion mounts to / and the master partition mounts to /mnt/master.
+# Confirm that the symlinks (in /boot) for vmlinuz and initrd exist and point to the correct files.
+# Check for any directories like /data1, /data2, etc., confirm that they are empty and delete them.
+# Perform any other customization you want in the jail
+
+Reboot the machine to the master partition.
+
+Change to the directory where the partition with new slave OS is mounted (/mnt/slave6, for example).
+
+Pick a name for the jail that includes the OS, platform, and any non-default settings you used when creating it. (suse-93-x86_64-sp1-gnome, for example)
+
+Run the command: GZIP="--best" tar cfz /jails/bootable/<jail_name>.tar.gz *
+
+Test the jail
+
+# Using the rcqa scripts, deploy the new jail to a different partition, 
+# boot to that partition 
+# make sure you can log in to the machine with the root password. Test that /mnt/master and /jails are correctly mounted. From a remote computer, make sure you can log in with ssh. Confirm that the qa-master script exists. 

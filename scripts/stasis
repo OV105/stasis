@@ -1,0 +1,339 @@
+#!/usr/bin/env python
+###############################################################################
+#
+# Copyright (c) 2009 Novell, Inc.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public License 
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, contact Novell, Inc.
+#
+# To contact Novell about this file by physical or electronic mail,
+# you may find current contact information at www.novell.com
+#
+###############################################################################
+
+import sys
+import os
+import glob
+import imp
+import logging
+import pwd
+import datetime
+import tempfile
+
+try:
+    import stasis
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(\
+                    sys.argv[0]))))
+    import stasis
+
+class StasisUtility:
+    def __init__(self, args, options, stasis, logger):
+        self.args = args
+        self.options = options
+        self.logger = logger
+        self.stasis = stasis
+        if options.logdir is None:
+            dir_name = "stasis-run-%s-%s" % (pwd.getpwuid(os.getuid())[0],
+                                        datetime.datetime.now().
+                                        strftime("%b-%d-%H%M"))
+            self.logdir = os.path.join(tempfile.gettempdir(), dir_name)
+        else:
+            self.logdir = options.logdir
+
+        try:
+            self.suite_list = self.options.suite_list
+        except AttributeError:
+            self.suite_list = []
+
+    def getStasisLibs(self):
+        xsd_dir = os.path.join(os.path.dirname(stasis.__file__), "xsd")
+        case_validator = stasis.XMLValidator(os.path.join(xsd_dir, \
+                                                  "test-case.xsd"))
+        case_lib = stasis.TestCaseLibrary(case_validator, \
+                                               self.options.suite_list)
+        for conf_file in self.options.config_files:
+            case_lib.addConfFile(conf_file)
+
+        seq_validator = stasis.XMLValidator(os.path.join(xsd_dir, \
+                                                 "test-sequence.xsd"))
+        sequence_lib = stasis.TestSequenceLibrary(case_lib, \
+                                                      self.options.suite_list)
+        for conf_file in self.options.config_files:
+            sequence_lib.addConfFile(conf_file)
+
+        return (case_lib, sequence_lib)
+
+    def setReporters(self, series, reporters=[]):
+        time_stamp = datetime.datetime.now().strftime("%b-%d-%H%M.%S")
+        if not os.path.isdir(self.logdir):
+            os.mkdir(self.logdir)
+
+        logfile = os.path.join(self.logdir, "run-%s.log" % (time_stamp))
+        if os.path.isfile(logfile):
+            time_stamp = "%s-a" % time_stamp
+            logfile = os.path.join(self.logdir, "run-%s.log" % (time_stamp))
+
+        #picklefile = os.path.join(self.logdir, "run-%s.pickle" % (time_stamp))
+        #pickle_reporter = stasis.PickleReporter(picklefile)
+        #series.addReporter(pickle_reporter)
+        log_reporter = stasis.LogTestCaseReporter(self.options.verbose, \
+                                                       logfile)
+        series.addReporter(log_reporter)
+        if type(reporters) is list:
+            for reporter in reporters:
+                series.addReporter(reporter)
+        else:
+            series.addReporter(reporters)
+            
+        if self.options.console:
+            console = stasis.ConsoleTestCaseReporter(self.options.verbose)
+            series.addReporter(console)
+
+        #FIXME ????
+        #series.conf_file = os.path.join(logdir, "run-%s.conf" % (time_stamp))
+
+    #def runSeries(series, arg_list, cycle, register_list=[], role=None):
+    def runSeries(self, series):
+        time_stamp = datetime.datetime.now().strftime("%b-%d-%H%M.%S")
+        arg_dict = self.getArgDict()
+
+        rr = stasis.RoleRegistry(role=self.options.role)
+        for reg in self.options.register:
+            if os.path.isfile(reg):
+                for reg in [r.strip() for r in open(reg).readlines()]:
+                    rr.addHost(reg.split("="))
+            else:
+                rr.addHost(reg.split("="))
+
+        dispatcher = stasis.RunDispatcher(series, rr, arg_dict, \
+                                          self.options.timeout)
+        for i in range(self.options.cycle):
+            dispatcher.run()
+            conf_file = os.path.join(self.logdir, "run-%s_%s.conf" % \
+                                     (i, time_stamp))            
+            file = series.saveConfFile(conf_file)
+            
+        return series
+
+    def getArgDict(self, arg_list=None):
+        if arg_list is None:
+            arg_list = self.options.arg_list
+
+        #reg_expr = re.compile("([^:=]+)[:=]{0,1}([^:=]*)")
+        arg_dict = {}
+        for arg in arg_list:
+            (name, value) = arg.split("=")
+            arg_dict[unicode(name)] = unicode(value)
+
+        return arg_dict
+
+def basic_usage():
+    return "Usage: stasis <command> <options> ..."
+
+def detailed_usage(loaded_modules):
+    result = "%s\n" % (basic_usage())
+    mod_dict = {}
+    for name, module in loaded_modules.items():
+        intro = module.intro()
+        head = " %s (%s)" % (name, module.abbreviation())
+        mod_txt = "%-29s %s\n" % (head, intro[0])
+        for line in intro[1:]:
+            mod_txt += "%25s%s\n" % (" ",line)
+        
+        if mod_dict.has_key(module.GROUP) == 0:
+            mod_dict[module.GROUP] = [mod_txt]
+        else:
+             mod_dict[module.GROUP].append(mod_txt)
+
+    for (name, list) in mod_dict.items():
+        result += "\n%s\n" % (name)
+        for mod_txt in list:
+            result += "%s" % (mod_txt)
+
+    return result
+    
+xsd_dir = os.path.join(os.path.dirname(stasis.__file__), "xsd")
+if sys.platform == "linux2":
+    CONF_DIR = "/etc"
+else:
+    CONF_DIR = "/etc"
+
+try:
+    stasis.changeEncoding()
+except stasis.EncodingError, strerr:
+    print strerr
+    sys.exit(1)
+
+try:
+    cmd_dir = os.path.join(os.path.dirname(stasis.__file__), "commands")
+    loaded_modules = {}
+    abbreviations = {}
+    files = glob.glob(os.path.join(cmd_dir, "*.py"))
+    for file in files:
+        (path, file_name) = os.path.split(file)
+        name = os.path.splitext(file_name)[0]
+
+        if name in loaded_modules.keys():
+            continue
+
+        (file, filename, data) = imp.find_module(name, [path])
+
+        try:
+            module = imp.load_module(name, file, filename, data)
+        except ImportError, e:
+            #FIXME ??
+            raise e
+        else:
+            loaded_modules[name] = module
+            abbrev = module.abbreviation()
+            if abbreviations.has_key(abbrev):
+                raise "Already have abbreviation %s" % abbrev
+            else:
+                abbreviations[abbrev] = module
+
+        if file:
+            file.close()
+
+    # Assume first command line option without a leading "-"
+    # is the command.
+    i = 1
+    cmd = None
+    while i < len(sys.argv):
+        if sys.argv[i][0] != "-":
+            cmd = sys.argv[i]
+            break
+
+        i += 1
+    
+    if cmd is None:
+        if "-h" in sys.argv or "--help" in sys.argv:
+            print detailed_usage(loaded_modules)
+        else:
+            print "No recogized command entered, try -h for more information"
+            print basic_usage()
+    
+        sys.exit(1)
+
+    parser = stasis.OptionParser(usage=basic_usage())
+    parser.add_option("-c", "--config-file",
+                       action="append", 
+                       metavar="FILE",
+                       dest="config_files", 
+                       help="stasis configuration file")
+    parser.add_option("-C", "--console",
+                       action="store_false",
+                       help="Do NOT print test case output to console")
+    parser.add_option("-I", "--i18n", 
+                      type="choice",
+                      action="append",
+                      choices=stasis.getI18nKeys(),
+                      help="i18n test string to use: %s" % stasis.getI18nKeys())
+    parser.add_option("-l", "--logfile",
+                      help="Log file")
+    parser.add_option("-r", "--role", 
+                      help="Default role to run test cases.")
+    parser.add_option("-R", "--register",
+                      action="append", 
+                      metavar="<role>=<hostname>",
+                      dest="register",
+                      help="Register machines running staf.")
+    parser.add_option("-t", "--test",
+                       action="store_true",
+                       help="Test run")
+    parser.add_option("-T", "--timeout", 
+                      type="int", 
+                      metavar="INT",
+                      help="How long a test case can run before being killed.")
+    parser.add_option("-V", "--version", 
+                      action="store_true",
+                      help="print version number and exit")
+    parser.add_option("-v", "--verbose", 
+                      action="count",
+                      help="Increase test logging detail")
+    
+    parser.set_defaults(config_files=[])
+    parser.set_defaults(console=True)
+    #parser.set_defaults(debug=1)
+    parser.set_defaults(i18n=[])
+    parser.set_defaults(logfile=None)
+    parser.set_defaults(role=None)
+    parser.set_defaults(register=[])
+    parser.set_defaults(test=False)
+    parser.set_defaults(timeout=90)
+    parser.set_defaults(verbose=1)
+    parser.set_defaults(version=False)
+    settings_files = [os.path.join(CONF_DIR, "stasis", 'stasis.conf'),
+                      os.path.join(os.path.expanduser("~"), "stasis.conf"),
+                      os.path.join(os.getcwd(), "stasis.conf")]
+
+    try:
+        module = abbreviations[cmd]
+    except KeyError:
+        try:
+            module = loaded_modules[cmd]
+        except KeyError:
+            print "Error unrecognized command: %s" % (cmd)
+            print basic_usage()
+
+    module.setOptions(parser, stasis)
+    (options, args) = parser.parse_args(files=settings_files)
+    if options.version:
+        print stasis.__version__
+        sys.exit(0)
+    
+    try:
+        stasis.i18ntest.USE_I18N_TEST_STRINGS = options.i18n
+    except NameError:
+        stasis.i18ntest.USE_I18N_TEST_STRINGS = []
+
+    logger = logging.getLogger("stasis")
+    logger.setLevel(40 - options.verbose * 10 )
+    if options.logfile is None:
+        handler = logging.StreamHandler()
+    else:
+        handler = logging.FileHandler(options.log_file, 'w')
+
+    formatter = logging.Formatter("%(levelname)s - %(filename)s:%(lineno)s\n %(message)s\n")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    stasis_util = StasisUtility(args, options, stasis, logger)
+    try:
+        result = module.runCommand(stasis_util)
+    except stasis.StasisException, e:
+        logger.critical("%s - %s", e.__name__, e)
+        parser.print_usage()
+        sys.exit(1)
+
+    if options.console:
+        if type(result) == str or type(result) == unicode:
+            print result
+        else:
+            try:
+                if result.__name__ == "TestSeries":
+                    print "Log directory: %s" % result.logdir
+                    print "Passed:  %s" % result.getCount(stasis.STATUS_PASS)
+                    print "Failed:  %s" % result.getCount(stasis.STATUS_FAIL)  
+                    print "Not run: %s" % result.getCount(stasis.STATUS_NOTRUN)  
+            except AttributeError:
+                pass
+
+    sys.exit(0)
+
+except KeyboardInterrupt:
+    # Just quietly exit if we got a ^C
+    print 
+    sys.exit(0)
+    
+sys.exit(0)

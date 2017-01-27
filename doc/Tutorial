@@ -1,0 +1,199 @@
+ Copyright (c) 2009 Novell, Inc.
+ All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of version 2 of the GNU General Public License 
+ as published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, contact Novell, Inc.
+
+ To contact Novell about this file by physical or electronic mail,
+ you may find current contact information at www.novell.com
+
++---------------------------------------------------------------------
+|
+| stasis checklist
+|
++---------------------------------------------------------------------
+
+1. Install stasis.
+
+2. Install any 3rd party utilities used by test scrpts; dogtail, ldtp, expect..
+
+3. Create test case XML files or python modules with functions to be used for 
+   testing.
+
+4. Optionally create test sequence XML file(s) to run the test cases. To run
+   a test sequence (or Testopia test run) all of the test case files must be
+   in the current working directory or installed as part of a test suite.
+
+5. Run test cases. 
+
++---------------------------------------------------------------------
+|
+| stasis checklist for Testopia
+|
++---------------------------------------------------------------------
+
+1. Follow steps 1. thru 4. above.
+
+2. Obtain username and password for a Testopia server.
+
+3. Create a (or use an existing) test plan in Testopia.
+
+4. Create (or use existing) test cases in the test plan. Each test case to 
+   exectucted by stasis must be configured according to the instructions below.
+   Not all test cases in a test plan or test run need to be automated, stasis 
+   will only try to run those test cases that are configured correctly.
+   * set the Automatic field to automatic.
+   * Enter the xml file name or function name in the Script field.
+   * Enter the module name or suite name (optional) in the Arguments field.
+
+5. Create a test run from test plan, make a note of the test run id.
+
+6. Make sure that the xml files or python functions referenced by the Testopia 
+   test cases are installed correctly on the local machine. 
+
+7. Run stasis command. 
+
+stasis testopia-run-TestRun -U <username> -P <password> -S <server> <id>
+
+
+stasis testopia-run-TestRun -U foo -P bar -S qa-server.company.com  104
+
+    * Note if a password is not entered then stasis will prompt for one.
+
++---------------------------------------------------------------------
+|
+| Simple bash test case, no parameters.
+|
++---------------------------------------------------------------------
+
+1. Create and verify script for test case. Example
+
+output=`ls /var/lib/dbus/machine-id 2>&1`
+status=$?
+if [ $status != 0 ] ; then
+    echo "error status: $status"
+    echo $output
+    exit 1
+fi
+exit 0
+
+2. Create test case XML file (for example /tmp/tutorial-test-case.xml) containing the following code. Note the '&' character has been replace with '&amp;'.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<test-case>
+  <source type="sh">
+output=`ls /var/lib/dbus/machine-id 2>&amp;1`
+status=$?
+if [ $status != 0 ] ; then
+    echo "error status: $status"
+    echo $output
+    exit 1
+fi
+    exit 0
+  </source>
+</test-case>
+
+3. Run test case using stasis.
+
+stasis run-test-case /tmp/tutorial-test-case.xml 
+
++---------------------------------------------------------------------
+|
+| Python test case with parameters.
+|
++---------------------------------------------------------------------
+
+1. Create and verify python script for test case. Example:
+
+import commands
+from stasis import assert_equals
+cmd = "ping -c %d localhost" % (count)
+status, output = commands.getstatusoutput(cmd)
+assert_equals(status, 0)
+
+2. Create test case XML file (for example /tmp/tutorial-test-case.xml) containing the following.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<test-case>
+  <param-list>
+      <param name="count" type="integer" default="1"/>
+  </param-list>
+  <source type="python">
+import commands
+from stasis import assert_equals
+cmd = "ping -c %d localhost" % (count)
+status, output = commands.getstatusoutput(cmd)
+assert_equals(status, 0)
+  </source>
+</test-case>
+
+
+3. Run test case using stasis.
+
+stasis rtc -A count=4 /tmp/tutorial-param-case.xml 
+
+
++---------------------------------------------------------------------
+|
+| Example test sequence xml file 1
+|
++---------------------------------------------------------------------
+
+1. Ceate a basic sequence xml file (Ex. /tmp/tutorial-seq-1.xml)
+
+<?xml version="1.0" encoding="UTF-8"?>
+<test-sequence>
+  <arg-list>
+    <arg name="host" value="localhost"/>
+  </arg-list>
+  <run type="case" file="ls_file_shell.xml">
+    <arg-list>
+       <arg name="filename" value="/var"/>
+    </arg-list>
+  </run>
+  <run type="case" module="ping_test_func" function="try_ping"/>
+  <run type="sequence" file="child_sequence.xml"/>
+</test-sequence>
+
+2. Run test sequence using stasis. The test case xml files and test case module files must either be in the current local directory or installed as part of a test suite. Other wise stasis will not know where to look for them.
+
+stasis run-test-sequence /tmp/tutorial-seq-1.xml
+
+3. For more information on the test run you can increase the verbosity of the output from stasis by using the -v (or -vv for even more) command line switch.
+
++---------------------------------------------------------------------
+|
+| Test suite 
+|
++---------------------------------------------------------------------
+
+1. Place all of your test case xml files, module (.py) files  and test sequence
+   xml files in one or more directories. For example: 
+        /tmp/my_core_test_xml_files 
+        /tmp/my_test_module_files
+        /tmp/my_app_test_xml_files
+   
+   Note for a production test suite a location other than /tmp should be used.
+
+2. Create a configuration file in one of the following directories: 
+        /etc/stasis or ~/stasis/conf.
+
+3. Edit the configruation file adding a section header and values for 
+   search_paths, version and module_paths. For example:
+
+[my_app_test_suite]
+version=2
+search_paths=/tmp/my_core_test_xml_files:/tmp/my_app_test_xml_files
+module_paths=/tmp/my_test_module_files
+
+
+

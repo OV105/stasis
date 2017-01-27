@@ -1,0 +1,213 @@
+===============
+stan README
+===============
+
+STAN is a framework for defining and running suites of test cases. Test 
+sequences and test cases are defined in XML, and actual test case code 
+can be defined in any language.  Language handlers are provided for 
+Python and Shell.
+
+STAN supports a variety of reporting methods, including TCDB (Novell's 
+archaic test case database), nrmxplan (a custom PHP/AJAX-based test case 
+database), and, soon, Testopia (Novell and Mozilla's new, Bugzilla-based 
+test case database).
+
+When a test sequence is run, results are recorded in four ways: To the 
+console, in eye-friendly .s and Fs; To a log file, whose verbosity is 
+influenced by a debug level; to a TCDB import file, which is a CSV file, 
+one row per TCDB test case, with folder path/id, test case name/id, 
+environment, and whether the test case passed or failed; and to a 
+pickled log file, which is not human-readable but can be "replayed" 
+later on to reproduce any of the other logs. Optionally, you can also 
+pass in options to report results to nrmxplan, a custom web-based test case
+database.
+
+The import to TCDB is a secondary step performed with a simple Java
+application which reads a TCDB import CSV file.  The results of automated or 
+manual tests can thus be imported the same way.
+
+--------------------
+Test Case Definition
+--------------------
+
+A testcase file defines an individual test case.  It looks like this:
+
+---8<---
+<?xml version="1.0" encoding="UTF-8"?>
+<test-case folder-path="\\Birdman\\Package Management\\Client\\Command Line
+Interface\\Commands\\Package" name="packages">
+  <param-list>
+    <param name="number" type="integer" default="5"/>
+  </param-list>
+  <source type="python">
+import commands
+
+url = "file:///usr/share/rcqatest/packages"
+channel = "packages"
+
+status, output = commands.getstatusoutput("rug sa --type=mount %s" % url)
+assert_equals(status, 0, "could not mount rcqatest packages directory")
+
+status, output = commands.getstatusoutput("rug pa %s" % channel)
+assert_equals(status, 0, "packages command failed")
+for i in xrange(number):
+    pkg = "foo-%02d" % i
+    assert_match(pkg, output, "expected package not found")
+  </source>
+</test-case>
+---8<---
+
+Notes:
+
+For reporting to TCDB, the test-case tag must include attributes identifying 
+the test case to report to.  Although it would be preferable to use a folder
+id and test case id here, there is a limitation of the TCDB interface, in that
+there is no way to find out the id of a folder.  It may prove to be error
+prone to have to type out the whole folder path as above, but the best we
+can do is have good error checking at import time i.e. if the folder doesn't
+exist when the import is attempted, fail nicely, and output rows which failed
+to import to a secondary csv file, so they can be corrected and still imported.
+
+This test case takes a parameter - therefore when a test sequence 
+references it an argument must be passed.  Note, the specified parameter 
+is automatically made available as a python variable.
+
+Caveats:
+
+I think we are going to want the flexibiltiy to have one automated test routine
+cover more than one test case in the DB, for this reason, I think we will 
+change the schema above.  There are some cases where we can get more coverage
+more quickly if we leave open this possibility - and in the end shear coverage
+is the most important thing for regression testing.
+
+----------------
+Sequence Definition
+----------------
+
+A sequence file definition defines an ordered list of sub-sequences 
+and/or test cases to run.  In this way modular test sequence hierarchies 
+can be definied where it is possible to run sub-sets of the regression 
+suite on demand.
+
+An example test sequence tree might look like:
+
++--+ client-regression
+   |
+   +---+ client-install
+   |
+   +---+ client-cli
+   |   |
+   |   +---+ client-cli-commands 
+   |   |   |
+   |   |   +---+ client-cli-commands-package
+   |   |   |
+   |   |   +---+ client-cli-commands-service
+   |   |   |
+   |   |   +---+ client-cli-commands-users
+   |   |   |
+   |   |  ...
+   |   |
+   |   +---+ client-cli-options
+   |   |   |
+   |   |  ...
+   |   |
+   |   +---+ client-cli-help
+  ...
+
+A high level test sequence which includes an ordered series of 
+sub-sequences to run might look like this:
+
+---8<---
+<?xml version="1.0" encoding="UTF-8"?>
+<test-sequence name="server-regression">
+  <param-list>
+    <param type="int" name="scale" default="5"/>
+  </param-list>
+  <run type="sequence" file="server-cli-commands.xml">
+    <arg name="scale" var="scale"/>
+  </run>
+  <run type="sequence" file="server-acls.xml"/>
+  <run type="sequence" file="server-install.xml"/>
+</test-sequence>
+---8<---
+
+Notes:
+
+This calls the test sequence server-cli-commands.xml with the the scale 
+parameter.  Note the var="scale" attribute on the arg tag, references 
+the scale variable as defined in the param-list.  The remaining two test 
+sequences which are called do not take parameters, so no arguments need 
+to be specified.
+
+The server-cli-commands.xml test sequence in turn defines its own 
+sequence of test suites to run.
+
+---8<---
+<?xml version="1.0" encoding="UTF-8"?>
+<test-sequence name="server-cli-commands">
+  <param-list>
+    <param type="int" name="scale" default="25"/>
+  </param-list>
+  <run type="sequence" file="server-cli-commands-admin-basic.xml">
+    <arg name="scale" var="scale"/>
+  </run>
+
+  ...
+
+</test-sequence>
+---8<---
+
+
+Notes:
+
+server-cli-commands-admin-basic.xml defines a sequence of actual test cases:
+
+---8<---
+<?xml version="1.0" encoding="UTF-8"?>
+<test-sequence name="server-cli-commands-admin-basic">
+  <param-list>
+    <param type="int" name="scale"/>
+  </param-list>
+  <run type="case" file="admin-add.xml">
+    <arg name="base" value="admin"/>
+    <arg name="number" var="scale"/>
+  </run>
+    
+  ...
+
+</test-sequence>
+---8<---
+
+
+-----------
+XML Schemas
+-----------
+
+stan runs all processed XML files through an XML validator.  The files are
+validated against the stan test-case or test-sequence schema:
+
+test-case.xsd - defines the language for test case xml definitions
+test-sequence.xsd - defines the language for test sequence xml definitions
+
+You can disable validation at run time by passing the --skip-validation flag
+to stan-run-case or stan-run-sequence.  Validation relies on the presence of
+an xmllint version that supports schema validation, so if you are using (for
+example) SLES 8, you will always get a validation error and you MUST pass in
+the --skip-validation switch.
+
+
+-------
+Scripts
+-------
+
+stan-run-sequence - for running test sequences
+stan-run-case - for running individual test cases
+stan-log-replay - for replaying the pickled log file into whatever 
+  loggers you choose
+
+
+---------
+Libraries
+---------
+
+nrmxtest.py - the core library

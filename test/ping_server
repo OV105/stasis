@@ -1,0 +1,65 @@
+#!/usr/bin/python
+
+import xmlrpclib
+import optparse
+import sys
+import pdb
+
+def main( args ):
+    #base_name = os.path.splitext( os.path.basename(sys.argv[0]) )[0]
+    usage = "usage: %prog [-U username] [-P password]"
+    parser = optparse.OptionParser( usage=usage )
+    parser.add_option("-p", "--port",
+                      default=None)
+    parser.add_option("-P", "--password",
+                      default=None)
+    parser.add_option("-s", "--server",
+                      metavar="SERVER",
+                      default=None)
+    parser.add_option("-U", "--user",
+                      default=None)
+    parser.add_option("-u", "--url",
+                      metavar="URL",
+                      default=None)
+                      
+    (options,args) = parser.parse_args()
+
+    
+    if options.url is None:
+        if options.user is None:
+            user = raw_input("username: ")
+        else:
+            user = options.user
+                                        
+        if options.password is None:
+            password = raw_input("Password for %s: " % user)
+        else:
+            password = options.password
+                                        
+        if options.server is None:
+            if options.url is None:
+                print "Enter either url or server"
+                sys.exit(1)
+            else:
+                url = options.url
+        else:
+            if options.port is not None:
+                url = "http://%s:%s@%s:%s/tr_xmlrpc.cgi" % (user,
+                                                            password,
+                                                            options.server, 
+                                                            options.port)
+            else:
+                url = "https://%s:%s@%s/tr_xmlrpc.cgi" % (user,
+                                                        password,
+                                                        options.server)
+    else:
+        url = options.url
+
+    print "url: %s" % url
+    server = xmlrpclib.ServerProxy(url, verbose=1)
+    pdb.set_trace()
+    methods = server.listMethods()
+    print "methods: %s" % methods
+    
+if __name__ == '__main__':
+    main( sys.argv[1:] )

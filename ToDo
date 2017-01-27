@@ -1,0 +1,35 @@
+* fix so that sitecustomize is no longer required for encoding
+
+* log test cases during run
+
+* limit sized of std-out std-err saved
+- save stdout and stderr to some log file
+- return last some limited amount of stdout, stderr
+- compress stdout, stderr in memory
+
+* core file
+
+* load test scripts from testopia test case attachment
+
+* large test data, how to store?
+
+* Allow rerun Testopia failed, passed, etc. test cases for a test run.
+
+* Automatic rerun of failures
+
+* Login to a different user account to run tests>
+
+* Tool for creating XML files.
+
+* plugin for eclipse IDE.
+
+* cycle individual test cases.
+
+* STAF support, improve/fix.
+
+* Document functions and classes.
+
+* Add example xml files to doc directory
+
+* After getting rid of configparser.py, add example statis.conf file.
+

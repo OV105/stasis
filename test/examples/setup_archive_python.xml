@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright (c) 2009 Novell, Inc.
+ All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of version 2 of the GNU General Public License 
+ as published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, contact Novell, Inc.
+
+ To contact Novell about this file by physical or electronic mail,
+ you may find current contact information at www.novell.com
+-->
+<test-case>
+ <param-list>
+  <param name="archive_file_name" type="string"/>
+  <param name="_search_paths" type="list"/>
+  <param name="_run_callback" type="method"/>
+ </param-list>
+  <source type="python">
+import stasis
+run_dir = stasis.expandArchive(archive_file_name, _search_paths)
+print "run_dir: %s" % run_dir
+stasis.runInDir(run_dir, _run_callback)
+  </source>
+</test-case>
+  
+

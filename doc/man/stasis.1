@@ -1,0 +1,66 @@
+.\" User Commands
+.\" Contact timlee@novell.com to correct errors or omissions.
+.TH man 1 "29 Jan 2007" "1.1" "stasis man page"
+.SH NAME
+stasis \- Report difference between sets of rpm packages.
+.SH SYNOPSIS
+Stasis is a framework for defining and running suites of test cases. Test sequences and test cases are defined in XML, and actual test case code can be defined in any language.  Language handlers are provided for Python and Shell.
+
+Stasis supports a variety of reporting methods, including log files, console, and Testopia (Novell and Mozilla's new, Bugzilla-based test case database).
+
+.SH XML files  
+.TP
+\fBTest case xml file
+.TP
+A testcase xml file defines an individual test case and looks like this sample:
+
+ <?xml version="1.0" encoding="UTF-8"?>
+ <test-case name="ls_tmp">
+  <param-list>
+    <param name="number" type="integer" default="5"/>
+  </param-list>
+  <source type="python">
+ import commands
+ status, output = commands.getstatusoutput("ls /tmp')
+ assert_equals(status, 0, "Could not list /tmp directory")
+  </source>
+ </test-case>
+.TP
+This test case takes a parameter - therefore when a test sequence references it an argument must be passed.  Note, the specified parameter is automatically made available as a python variable.
+
+.TP
+\fBTest sequence xml file
+.TP
+A sequence file definition defines an ordered list of sub-sequences and/or test cases to run.  In this way modular test sequence hierarchies can be definied where it is possible to run sub-sets of the regression suite on demand.
+
+ <?xml version="1.0" encoding="UTF-8"?>
+ <test-sequence name="ls-regression">
+  <param-list>
+    <param type="int" name="scale" default="5"/>
+  </param-list>
+  <run type="sequence" file="server-cli-commands.xml">
+    <arg name="scale" var="scale"/>
+  </run>
+    <run type="sequence" file="ls_tmp.xml"/>
+    <run type="sequence" file="ls_usr.xml"/>
+ </test-sequence>
+.TP
+
+.TP
+\fBXML Schemas
+.TP
+Stasis runs all processed XML files through an XML validator.  The files are validated against the stasis test-case or test-sequence schema:
+
+ test-case.xsd - defines the language for test case xml definitions 
+ test-sequence.xsd - defines the language for test sequence xml definitions
+
+
+.SH Commands
+.IP \(bu 2 
+stasis-run-testopia-sequence - Run test cases from a Testopia test run.
+.IP \(bu 2 
+stasis-run-sequence - Run local test sequence xml files.
+.IP \(bu 2 
+stasis-run-case - Run individual test cases.
+ 
+

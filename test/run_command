@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+import xmlrpclib
+import optparse
+import sys
+
+def main( args ):
+    #base_name = os.path.splitext( os.path.basename(sys.argv[0]) )[0]
+    usage = "usage: %prog [-U username] [-P password] [-s server|-u URL]"
+    parser = optparse.OptionParser( usage=usage )
+    parser.add_option("-p", "--port",
+                      default=None)
+    parser.add_option("-P", "--password",
+                      default=None)
+    parser.add_option("-s", "--server",
+                      metavar="SERVER",
+                      default="bugzillastage.provo.novell.com")
+    parser.add_option("-U", "--user",
+                      default=None)
+    parser.add_option("-u", "--url",
+                      metavar="URL",
+                      default=None)
+                      
+    (options,args) = parser.parse_args()
+
+    if options.user is None:
+        user = raw_input("username: ")
+    else:
+        user = options.user
+                                    
+    if options.password is None:
+        password = raw_input("Password for %s: " % user)
+    else:
+        password = options.password
+                                    
+    if options.server is None:
+        if options.url is None:
+            print "Enter either url or server"
+            sys.exit(1)
+        else:
+            url = options.url
+    else:
+        if options.port is not None:
+            url = "http://%s:%s@%s:%s/tr_xmlrpc.cgi" % (user,
+                                                        password,
+                                                        options.server, 
+                                                        options.port)
+        else:
+            url = "https://%s:%s@%s/tr_xmlrpc.cgi" % (user,
+                                                      password,
+                                                      options.server)
+    print "url: %s" % url
+    server = xmlrpclib.ServerProxy(url, verbose=1)
+    
+    ### edit server command here ###
+    
+    #result = server.TestCaseRun.list({"run_id":104})
+    #result = server.TestCase.get(15426)
+    #result = server.TestCase.get_text({"case_id":15426})
+    #result = server.TestCase.get_components({"case_id":15426})
+
+    #result = server.TestCase.lookup_status_id_by_name("CONFIRMED")
+    #result = server.TestCase.lookup_status_name_by_id(3)
+    #result = server.TestCaseRun.lookup_status_id_by_name("FAILED")
+    result = server.TestCaseRun.update(3,3,3,3,{"a":2})
+
+    print result
+    
+if __name__ == '__main__':
+    main( sys.argv[1:] )

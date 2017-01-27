@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright (c) 2009 Novell, Inc.
+ All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of version 2 of the GNU General Public License 
+ as published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, contact Novell, Inc.
+
+ To contact Novell about this file by physical or electronic mail,
+ you may find current contact information at www.novell.com
+-->
+<test-case>
+  <setup file="setup_archive_python.xml"/>
+  <source type="python">
+import os
+import stasis
+dir = "archive_test_dir"
+file = "archive_test_file"
+sub_file = "archive_test_dir/sub_archive_file"
+if os.path.isdir(dir):
+    print "found directory: %s" % (dir)
+else:
+    raise stais.StasisException, "Directory %s not found" % (dir)
+
+if os.path.isfile(file):
+    print "found file: %s" % (file)
+else:
+    raise stais.StasisException, "File %s not found" % (file)
+
+if os.path.isfile(sub_file):
+    print "found file: %s" % (sub_file)
+else:
+    raise stais.StasisException, "File %s not found" % (sub_file)
+  </source>
+</test-case>
+  
+
