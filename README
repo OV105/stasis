@@ -2,12 +2,12 @@
 stan README
 ===============
 
-STAN is a framework for defining and running suites of test cases. Test 
+STASIS is a framework for defining and running suites of test cases. Test 
 sequences and test cases are defined in XML, and actual test case code 
 can be defined in any language.  Language handlers are provided for 
 Python and Shell.
 
-STAN supports a variety of reporting methods, including TCDB (Novell's 
+STASIS supports a variety of reporting methods, including TCDB (Novell's 
 archaic test case database), nrmxplan (a custom PHP/AJAX-based test case 
 database), and, soon, Testopia (Novell and Mozilla's new, Bugzilla-based 
 test case database).
